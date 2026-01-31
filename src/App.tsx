@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useDragControls, PanInfo } from 'framer-motion
 import { Analytics } from '@vercel/analytics/react';
 import { FFmpeg } from './vendor/ffmpeg/index.js';
 import { MainLayout } from './components/layout/MainLayout';
+import { ReloadPrompt } from './components/ui/ReloadPrompt';
 import { LogViewer } from './components/ui/LogViewer';
 import { ConverterView } from './views/ConverterView';
 import { SettingsView } from './views/SettingsView';
@@ -160,6 +161,7 @@ export default function App() {
         </AnimatePresence>
       </MainLayout>
       <Analytics />
+      <ReloadPrompt />
     </BrowserRouter>
   );
 }

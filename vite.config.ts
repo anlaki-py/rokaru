@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     basicSsl(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'core/ffmpeg-core.js', 'core/ffmpeg-core.wasm'],
       manifest: {
         name: 'Rōkaru',
