@@ -23,7 +23,7 @@ export const IdleView = ({ onFileSelect, isDragging }: IdleViewProps) => {
     >
       <div className="text-center mb-12 space-y-4">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-primary">
-          In-browser audio extraction 🥺
+          In-browser audio extraction
         </h2>
         <p className="text-secondary text-sm md:text-base max-w-sm mx-auto leading-relaxed">
           A simple tool to convert video to audio locally. No servers, no tracking, no bytes ever leave your device.

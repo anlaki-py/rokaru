@@ -13,7 +13,7 @@ export const ReloadPrompt = () => {
         setInterval(() => {
           console.log('Checking for sw update');
           r.update();
-        }, 60 * 1000 /* Check every minute */);
+        }, 30 * 1000 /* Check every minute */);
       }
     },
     onRegisterError(error) {
@@ -36,7 +36,7 @@ export const ReloadPrompt = () => {
         >
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-medium text-white">Update Available</h3>
-            <p className="text-xs text-white/60">A new version of Rōkaru is available.</p>
+            <p className="text-xs text-white/60">A new version of rōkaru is available.</p>
           </div>
           <div className="flex gap-2 mt-1">
             <button
