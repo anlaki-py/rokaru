@@ -2,25 +2,32 @@
 
 export class OPFSStorage {
   private root: FileSystemDirectoryHandle | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init() {
     if (this.root) return;
-    
-    if (!navigator.storage || !navigator.storage.getDirectory) {
-      // Re-check once after a tiny delay in case of race during load
-      await new Promise(r => setTimeout(r, 100));
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
       if (!navigator.storage || !navigator.storage.getDirectory) {
-        throw new Error(
-          'Storage API not available. This app requires a secure context (HTTPS or localhost) and a modern browser.'
-        );
+        // Re-check once after a tiny delay in case of race during load
+        await new Promise(r => setTimeout(r, 100));
+        if (!navigator.storage || !navigator.storage.getDirectory) {
+          throw new Error(
+            'Storage API not available. This app requires a secure context (HTTPS or localhost) and a modern browser.'
+          );
+        }
       }
-    }
-    
-    try {
-      this.root = await navigator.storage.getDirectory();
-    } catch (e: any) {
-      throw new Error(`Failed to initialize storage: ${e.message}`);
-    }
+      
+      try {
+        this.root = await navigator.storage.getDirectory();
+      } catch (e: any) {
+        this.initPromise = null;
+        throw new Error(`Failed to initialize storage: ${e.message}`);
+      }
+    })();
+
+    return this.initPromise;
   }
 
   async saveFile(filename: string, data: ArrayBuffer | Uint8Array | Blob): Promise<void> {

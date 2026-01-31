@@ -17,7 +17,6 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
 
   const navItems = [
     { icon: Music, label: 'Converter', path: '/' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   return (
@@ -88,19 +87,37 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
                     <span>{item.label}</span>
                   </Link>
                 ))}
-              </nav>
-
-              <div className="mt-auto pt-6 border-t border-white/5">
-                 <button
+                <button
                   onClick={() => {
                     setShowLogs(!showLogs);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-secondary hover:text-primary rounded-xl hover:bg-surface-highlight/30 transition-colors"
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                    showLogs
+                      ? "bg-surface-highlight text-primary"
+                      : "text-secondary hover:text-primary hover:bg-surface-highlight/30"
+                  )}
                 >
                   <Terminal className="w-5 h-5" />
                   <span>{showLogs ? 'Hide Logs' : 'View Logs'}</span>
                 </button>
+              </nav>
+
+              <div className="mt-auto pt-6 border-t border-white/5">
+                <Link
+                  to="/settings"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                    location.pathname === '/settings'
+                      ? "bg-primary text-background font-semibold"
+                      : "text-secondary hover:text-primary hover:bg-surface-highlight/30"
+                  )}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </Link>
               </div>
             </motion.aside>
           </>
@@ -131,6 +148,18 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
               <span className="font-medium">{item.label}</span>
             </Link>
           ))}
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group",
+              showLogs
+                ? "bg-surface-highlight text-primary shadow-lg shadow-white/5"
+                : "text-secondary hover:text-primary hover:bg-surface-highlight/50"
+            )}
+          >
+            <Terminal className="w-5 h-5 shrink-0" />
+            <span className="font-medium">{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
+          </button>
         </nav>
 
         <div className="p-4 mt-auto space-y-4">
@@ -140,18 +169,18 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
           </div>
 
           <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setShowLogs(!showLogs)}
+            <Link
+              to="/settings"
               className={cn(
                 "w-full py-2 rounded-xl text-xs font-medium transition-all duration-200 border flex items-center justify-center gap-2",
-                showLogs
-                  ? "bg-surface-highlight text-primary border-transparent"
+                location.pathname === '/settings'
+                  ? "bg-primary text-background border-transparent"
                   : "bg-transparent text-secondary border-border hover:border-secondary"
               )}
             >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
-            </button>
+              <Settings className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </Link>
           </div>
         </div>
       </aside>

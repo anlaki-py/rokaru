@@ -28,6 +28,7 @@ The core logic resides in `src/hooks/useFFmpegEngine.ts`.
 *   **Caching:** Implements a custom caching strategy (`rokaru-core-v1`) to cache the large WASM binary (~30MB) for offline use.
 *   **Memory Management:** 
     *   Uses **OPFS** to write input files to disk (`input.mp4`) instead of keeping them in RAM.
+    *   `src/lib/storage.ts` includes an `initPromise` lock to prevent race conditions during the first initialization.
     *   Reads files in chunks (50MB) during processing to support multi-gigabyte files.
 *   **Security:** 
     *   Strict `COOP` (Cross-Origin-Opener-Policy) and `COEP` (Cross-Origin-Embedder-Policy) headers are **mandatory** in `vite.config.ts` to enable `SharedArrayBuffer`.
@@ -46,6 +47,8 @@ Controlled by `src/views/ConverterView.tsx` via a strict state machine:
 4.  **`processing`**: FFmpeg conversion in progress (shows progress bar & logs).
 5.  **`done`**: Conversion complete, download available.
 6.  **`error`**: System failure state.
+
+*Note: `AnimatePresence` in `ConverterView` does not use `mode="wait"` to ensure file input DOM elements stay alive during transitions, preventing browser file-permission revocation.*
 
 ## 4. Development Workflow
 

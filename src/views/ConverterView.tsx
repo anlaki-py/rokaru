@@ -120,7 +120,7 @@ export const ConverterView = (props: ConverterViewProps) => {
     >
       {/* Main Converter Area */}
       <div className="min-h-[calc(100dvh-6rem)] md:min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-8 w-full max-w-5xl relative">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {status === 'init' && (
             <motion.div 
               key="init" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -161,7 +161,7 @@ export const ConverterView = (props: ConverterViewProps) => {
 
           {status === 'error' && (
             <motion.div 
-              key="error" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+              key="error" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               className="text-center space-y-6 py-8"
             >
               <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto border border-red-500/20">
