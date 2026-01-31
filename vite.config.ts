@@ -29,7 +29,6 @@ export default defineConfig({
         ]
       },
       workbox: {
-        mode: 'development',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
         // Increase maximum size for WASM files (30MB is usually enough for ffmpeg-core.wasm)
         maximumFileSizeToCacheInBytes: 35 * 1024 * 1024,
