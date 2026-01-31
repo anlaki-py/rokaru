@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rokaru.vercel.app/sitemap.xml

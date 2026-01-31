@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />   
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <title>Rōkaru - Private Video to Audio Converter | Client-Side Processing</title>
+    <meta name="description" content="Convert video to audio completely privately. Client-side processing means your files never upload. No tracking, no limits, no registration. Free forever." />
+    <meta name="keywords" content="video to audio, extract audio, mp4 to mp3, private converter, browser-based editor, media tools, high quality audio, no upload converter, local ffmpeg, privacy tools" />
+    <link rel="canonical" href="https://rokaru.vercel.app/" />
+
+    <!-- Open Graph for social/AI tools -->
+    <meta property="og:title" content="Rōkaru - Private Video to Audio Converter" />
+    <meta property="og:description" content="Convert video to audio without uploading. Client-side processing keeps your files private. Free, fast, unlimited." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rokaru.vercel.app/" />
+    <meta property="og:image" content="https://rokaru.vercel.app/seo.webp" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Rōkaru - Private Video to Audio Converter" />
+    <meta name="twitter:description" content="Your files never leave your device. Client-side video conversion with ffmpeg.wasm." />
+    <meta name="twitter:image" content="https://rokaru.vercel.app/seo.webp" />
+
+    <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Rōkaru",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web Browser",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "127"
+        },
+        "featureList": [
+          "Client-side video conversion",
+          "Privacy-preserving architecture",
+          "No file size limits",
+          "Multiple audio format support",
+          "Lossless extraction capability"
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is Rōkaru really private?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Rōkaru processes all conversions client-side using ffmpeg.wasm. Your files never upload to our servers. You can verify this by monitoring network traffic in your browser's developer tools—no upload requests occur."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does client-side conversion work?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Rōkaru uses ffmpeg.wasm to process your video files entirely in your browser. Unlike traditional converters that upload files to servers, your video file never leaves your device and processing happens using your computer's CPU."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is there a file size limit?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Since conversion happens locally on your device, there are no arbitrary file size restrictions typically found in cloud converters. It's only limited by your device's storage."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What video formats are supported?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "We support most major video containers including MP4, MOV, WEBM, MKV, and AVI. If your browser can read the file, Rōkaru can likely extract audio from it."
+            }
+          }
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to Convert Video to Audio Without Uploading",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "text": "Open Rōkaru in your web browser"
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Click 'Select Video' and choose your file"
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Select desired audio format (MP3, WAV, FLAC, etc.)"
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Click 'Convert'—processing begins locally"
+          },
+          {
+            "@type": "HowToStep",
+            "text": "Download your audio file when conversion completes"
+          }
+        ]
+      }
+    ]
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

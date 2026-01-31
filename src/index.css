@@ -1,0 +1,199 @@
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif';
+  --font-mono: 'JetBrains Mono', 'Menlo', 'Monaco', 'Consolas', 'monospace';
+  --font-display: 'Syne', sans-serif;
+
+  --color-background: #09090b;
+  --color-surface: #18181b;
+  --color-surface-highlight: #27272a;
+  --color-border: #27272a;
+  --color-primary: #fafafa;
+  --color-secondary: #a1a1aa;
+  --color-accent: #3b82f6;
+
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+:root {
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  overscroll-behavior-y: none; /* Prevent pull-to-refresh */
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-highlight);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Modern Range Input */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 16px; /* Touch target */
+}
+
+/* Webkit Slider Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--color-surface-highlight);
+  height: 4px;
+  border-radius: 9999px;
+}
+
+/* Webkit Slider Thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px; /* Centers thumb on track */
+  background-color: var(--color-primary);
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+}
+
+/* Firefox Slider Track */
+input[type="range"]::-moz-range-track {
+  background: var(--color-surface-highlight);
+  height: 4px;
+  border-radius: 9999px;
+}
+
+/* Firefox Slider Thumb */
+input[type="range"]::-moz-range-thumb {
+  border: none;
+  background-color: var(--color-primary);
+  height: 16px;
+  width: 16px;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Utilities */
+.no-tap-highlight {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Dynamic Progress Fill for Range Inputs */
+.range-progress {
+  background: linear-gradient(to right, var(--color-primary) var(--progress), var(--color-surface-highlight) var(--progress));
+}
+
+/* --- Custom Loading Animation --- */
+.wrapper {
+  width: 200px;
+  height: 60px;
+  position: relative;
+  z-index: 1;
+}
+
+.circle {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  left: 15%;
+  transform-origin: 50%;
+  animation: circle7124 .5s alternate infinite ease;
+}
+
+@keyframes circle7124 {
+  0% {
+    top: 60px;
+    height: 5px;
+    border-radius: 50px 50px 25px 25px;
+    transform: scaleX(1.7);
+  }
+
+  40% {
+    height: 20px;
+    border-radius: 50%;
+    transform: scaleX(1);
+  }
+
+  100% {
+    top: 0%;
+  }
+}
+
+.circle:nth-child(2) {
+  left: 45%;
+  animation-delay: .2s;
+}
+
+.circle:nth-child(3) {
+  left: auto;
+  right: 15%;
+  animation-delay: .3s;
+}
+
+.shadow {
+  width: 20px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: rgba(0,0,0,0.5);
+  position: absolute;
+  top: 62px;
+  transform-origin: 50%;
+  z-index: -1;
+  left: 15%;
+  filter: blur(1px);
+  animation: shadow046 .5s alternate infinite ease;
+}
+
+@keyframes shadow046 {
+  0% {
+    transform: scaleX(1.5);
+  }
+
+  40% {
+    transform: scaleX(1);
+    opacity: .7;
+  }
+
+  100% {
+    transform: scaleX(.2);
+    opacity: .4;
+  }
+}
+
+.shadow:nth-child(4) {
+  left: 45%;
+  animation-delay: .2s
+}
+
+.shadow:nth-child(5) {
+  left: auto;
+  right: 15%;
+  animation-delay: .3s;
+}

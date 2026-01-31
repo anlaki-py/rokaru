@@ -1,0 +1,12 @@
+<svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Container -->
+  <rect x="2" y="2" width="20" height="20" rx="6" fill="black"/>
+  
+  <!-- Negative Space: Equalizer forming a Triangle shape -->
+  <!-- Short bar -->
+  <rect x="7" y="8" width="2" height="8" rx="1" fill="white"/>
+  <!-- Medium bar -->
+  <rect x="11" y="6" width="2" height="12" rx="1" fill="white"/>
+  <!-- Point bar -->
+  <rect x="15" y="10" width="2" height="4" rx="1" fill="white"/>
+</svg>
