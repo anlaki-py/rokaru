@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { Terminal as TerminalIcon, X } from 'lucide-react';
+import { Terminal as TerminalIcon, X, FileText } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { LogEntry } from '../../App';
 
 interface LogViewerProps {
-  logs: string[];
+  logs: LogEntry[];
   onClear: () => void;
   onClose?: () => void;
   dragControls?: any;
@@ -17,6 +18,19 @@ export const LogViewer = ({ logs, onClear, onClose, dragControls }: LogViewerPro
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [logs]);
+
+  const copyToClipboard = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const btn = e.currentTarget as HTMLButtonElement;
+    const originalText = btn.innerText;
+    
+    const text = logs.map(l => `[${l.timestamp}]${l.fileName ? ` [${l.fileName}]` : ''} ${l.message}`).join('\n');
+    
+    navigator.clipboard.writeText(text).then(() => {
+      btn.innerText = 'COPIED!';
+      setTimeout(() => { btn.innerText = originalText; }, 2000);
+    });
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#0c0c0e]">
@@ -32,16 +46,7 @@ export const LogViewer = ({ logs, onClear, onClose, dragControls }: LogViewerPro
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={(e) => { 
-              e.stopPropagation(); 
-              const btn = e.currentTarget;
-              const originalText = btn.innerText;
-              
-              navigator.clipboard.writeText(logs.join('\n')).then(() => {
-                btn.innerText = 'COPIED!';
-                setTimeout(() => { btn.innerText = originalText; }, 2000);
-              });
-            }} 
+            onClick={copyToClipboard} 
             className="text-[10px] text-secondary hover:text-primary transition-colors"
           >
             COPY
@@ -74,17 +79,31 @@ export const LogViewer = ({ logs, onClear, onClose, dragControls }: LogViewerPro
           </div>
         ) : (
           logs.map((log, i) => (
-            <div key={i} className="text-zinc-400 break-words border-l-2 border-transparent hover:border-zinc-700 pl-3 -ml-3 py-0.5 transition-colors">
-              <span className="opacity-40 mr-3 select-none text-[10px]">{log.substring(1, 9)}</span>
-              <span className={cn(
-                "leading-relaxed",
-                log.toLowerCase().includes('error') ? "text-red-400" :
-                log.toLowerCase().includes('success') ? "text-green-400" :
-                log.toLowerCase().includes('processing') ? "text-blue-400" :
-                "text-zinc-300"
-              )}>
-                {log.substring(11)}
-              </span>
+            <div key={i} className="text-zinc-400 break-words border-l-2 border-transparent hover:border-zinc-700 pl-3 -ml-3 py-0.5 transition-colors group">
+              <div className="flex items-start gap-3">
+                <span className="opacity-40 select-none text-[10px] shrink-0 mt-0.5">{log.timestamp}</span>
+                
+                <div className="flex flex-col gap-1 min-w-0">
+                  {log.fileName && (
+                    <div className="flex items-center gap-1.5">
+                      <FileText className="w-2.5 h-3 text-primary/40" />
+                      <span className="text-[9px] text-primary/60 font-bold truncate uppercase tracking-tighter max-w-[150px]">
+                        {log.fileName}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <span className={cn(
+                    "leading-relaxed",
+                    log.message.toLowerCase().includes('error') ? "text-red-400" :
+                    log.message.toLowerCase().includes('success') || log.message.toLowerCase().includes('complete') ? "text-green-400" :
+                    log.message.toLowerCase().includes('processing') ? "text-blue-400" :
+                    "text-zinc-300"
+                  )}>
+                    {log.message}
+                  </span>
+                </div>
+              </div>
             </div>
           ))
         )}

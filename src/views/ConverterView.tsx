@@ -11,6 +11,8 @@ import { MetadataModal } from '../components/ui/MetadataModal';
 import { IdleView } from '../components/converter/IdleView';
 import { BatchFileItem } from '../components/converter/BatchFileItem';
 import { BatchControls } from '../components/converter/BatchControls';
+import { ConversionProgress } from '../components/converter/ConversionProgress';
+import { ResultView } from '../components/converter/ResultView';
 
 // Hooks
 import { useFFmpegEngine } from '../hooks/useFFmpegEngine';
@@ -69,6 +71,7 @@ export const ConverterView = (props: ConverterViewProps) => {
   } = props;
 
   const [isDragging, setIsDragging] = useState(false);
+  const audioPlayerRef = useRef<any>(null);
 
   useEffect(() => {
     const checkStorage = async () => {
@@ -119,6 +122,8 @@ export const ConverterView = (props: ConverterViewProps) => {
       }
     });
   };
+
+  const activeTask = tasks.find(t => t.id === activeTaskId) || (tasks.length === 1 ? tasks[0] : null);
 
   const isProcessingAny = tasks.some(t => t.status === 'processing' || t.status === 'queued');
 
@@ -172,66 +177,97 @@ export const ConverterView = (props: ConverterViewProps) => {
 
           {tasks.length > 0 && (
             <motion.div 
-              key="batch-view"
+              key={tasks.length === 1 ? `single-${tasks[0].status}` : 'batch-view'}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               className="w-full flex flex-col gap-6 items-center"
             >
-              {/* Batch List */}
-              <div className="w-full max-h-[60vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
-                <AnimatePresence>
-                  {tasks.map(task => (
-                    <BatchFileItem 
-                      key={task.id}
-                      task={task}
-                      updateTask={updateTask}
-                      removeTask={removeTask}
-                      isActive={task.id === activeTaskId}
-                      isOnlyTask={tasks.length === 1}
-                      onActivate={() => {
-                        setActiveTaskId(activeTaskId === task.id ? null : task.id);
-                        updateTask(task.id, { manuallySelected: true });
-                      }}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              {tasks.length === 1 ? (
+                tasks[0].status === 'done' && tasks[0].outputUrl ? (
+                  <ResultView 
+                    outputUrl={tasks[0].outputUrl}
+                    fileName={tasks[0].fileName}
+                    outputExt={tasks[0].outputExt}
+                    onReset={() => removeTask(tasks[0].id)}
+                    audioPlayerRef={audioPlayerRef}
+                  />
+                ) : (
+                  <ConversionProgress 
+                    status={tasks[0].status as any}
+                    fileName={tasks[0].fileName}
+                    fileSize={tasks[0].fileSize}
+                    progress={tasks[0].progress}
+                    selectedFormat={tasks[0].selectedFormat}
+                    setSelectedFormat={(f) => updateTask(tasks[0].id, { selectedFormat: f })}
+                    onExtract={() => updateTask(tasks[0].id, { status: 'queued' })}
+                    onReset={() => removeTask(tasks[0].id)}
+                    onProbe={() => updateTask(tasks[0].id, { triggerProbe: true })}
+                    isMetadataLoading={tasks[0].isMetadataLoading}
+                  />
+                )
+              ) : (
+                <>
+                  {/* Batch List */}
+                  <div className="w-full max-h-[60vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                    <AnimatePresence>
+                      {tasks.map(task => (
+                        <BatchFileItem 
+                          key={task.id}
+                          task={task}
+                          updateTask={updateTask}
+                          removeTask={removeTask}
+                          isActive={task.id === activeTaskId}
+                          isOnlyTask={tasks.length === 1}
+                          onActivate={() => {
+                            setActiveTaskId(activeTaskId === task.id ? null : task.id);
+                            // If not done, clicking might imply wanting to see metadata
+                            if (task.status !== 'done') {
+                              updateTask(task.id, { triggerProbe: true });
+                            } else {
+                              updateTask(task.id, { manuallySelected: true });
+                            }
+                          }}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
 
-              {/* Add More Area (Mini Dropzone) */}
-              <div 
-                className={`w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
-                  isDragging 
-                    ? 'border-primary bg-primary/5 scale-[0.99]' 
-                    : 'border-white/10 hover:border-white/20 hover:bg-white/5'
-                }`}
-                onClick={() => {
-                   const input = document.createElement('input');
-                   input.type = 'file';
-                   input.accept = 'video/*';
-                   input.multiple = true;
-                   input.onchange = (e: any) => {
-                     if (e.target.files) onFilesSelect(e.target.files);
-                   };
-                   input.click();
-                }}
-              >
-                <div className="flex items-center gap-3 text-secondary">
-                  <Upload className="w-5 h-5" />
-                  <span className="text-sm font-medium">Add more videos</span>
-                </div>
-              </div>
+                  {/* Add More Area (Mini Dropzone) */}
+                  <div 
+                    className={`w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
+                      isDragging 
+                        ? 'border-primary bg-primary/5 scale-[0.99]' 
+                        : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                    }`}
+                    onClick={() => {
+                       const input = document.createElement('input');
+                       input.type = 'file';
+                       input.accept = 'video/*';
+                       input.multiple = true;
+                       input.onchange = (e: any) => {
+                         if (e.target.files) onFilesSelect(e.target.files);
+                       };
+                       input.click();
+                    }}
+                  >
+                    <div className="flex items-center gap-3 text-secondary">
+                      <Upload className="w-5 h-5" />
+                      <span className="text-sm font-medium">Add more videos</span>
+                    </div>
+                  </div>
 
-              {/* Controls */}
-              <BatchControls 
-                onStartAll={handleStartAll}
-                onClearAll={handleClearAll}
-                maxConcurrency={maxConcurrency}
-                setMaxConcurrency={setMaxConcurrency}
-                isProcessing={isProcessingAny}
-                hasItems={tasks.some(t => t.status === 'ready' || t.status === 'done')}
-              />
-
+                  {/* Controls */}
+                  <BatchControls 
+                    onStartAll={handleStartAll}
+                    onClearAll={handleClearAll}
+                    maxConcurrency={maxConcurrency}
+                    setMaxConcurrency={setMaxConcurrency}
+                    isProcessing={isProcessingAny}
+                    hasItems={tasks.some(t => t.status === 'ready' || t.status === 'done')}
+                  />
+                </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -240,9 +276,9 @@ export const ConverterView = (props: ConverterViewProps) => {
       <LandingSEO />
 
       <MetadataModal 
-        isOpen={false} // Disabled in batch view for now to keep UI clean
-        onClose={() => {}} 
-        data={null} 
+        isOpen={activeTask?.showMetadata || false} 
+        onClose={() => activeTask && updateTask(activeTask.id, { showMetadata: false })} 
+        data={activeTask?.metadata} 
       />
     </div>
   );

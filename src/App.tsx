@@ -34,6 +34,13 @@ export interface ConversionTask {
   manuallySelected?: boolean;
 }
 
+export interface LogEntry {
+  timestamp: string;
+  message: string;
+  taskId?: string;
+  fileName?: string;
+}
+
 export default function App() {
   const [globalStatus, setGlobalStatus] = useState<AppStatus>('init');
   const [globalLoadProgress, setGlobalLoadProgress] = useState(0);
@@ -43,6 +50,7 @@ export default function App() {
   const [defaultFormat, setDefaultFormat] = useState<AudioFormat>(
     (localStorage.getItem('defaultFormat') as AudioFormat) || 'mp3'
   );
+  const [globalLogs, setGlobalLogs] = useState<LogEntry[]>([]);
 
   // Sync settings to localStorage
   useEffect(() => {
@@ -100,9 +108,25 @@ export default function App() {
 
   const addLog = useCallback((taskId: string, msg: string) => {
     const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, logs: [...t.logs.slice(-199), `[${timestamp}] ${msg}`] } : t
-    ));
+    
+    setTasks(prev => {
+      const task = prev.find(t => t.id === taskId);
+      if (!task) return prev;
+
+      const logMsg = `[${timestamp}] ${msg}`;
+      const entry: LogEntry = {
+        timestamp,
+        message: msg,
+        taskId,
+        fileName: task.fileName
+      };
+
+      setGlobalLogs(g => [...g.slice(-499), entry]);
+
+      return prev.map(t => 
+        t.id === taskId ? { ...t, logs: [...t.logs.slice(-199), logMsg] } : t
+      );
+    });
   }, []);
 
   const updateTask = useCallback((taskId: string, updates: Partial<ConversionTask>) => {
@@ -242,7 +266,7 @@ export default function App() {
             className="absolute top-0 right-0 h-full border-l border-border bg-[#0c0c0e] overflow-hidden z-50 group"
           >
             <div style={{ width: sidebarWidth }} className="h-full relative">
-              <LogViewer logs={activeTask?.logs || []} onClear={() => activeTaskId && updateTask(activeTaskId, { logs: [] })} />
+              <LogViewer logs={globalLogs} onClear={() => setGlobalLogs([])} />
               <div onMouseDown={startResizing} className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize hover:bg-primary/50 z-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="w-0.5 h-8 bg-white/20 rounded-full" />
               </div>
@@ -261,7 +285,7 @@ export default function App() {
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className="fixed bottom-0 left-0 right-0 h-[60vh] bg-[#0c0c0e] border-t border-border z-[70] rounded-t-3xl overflow-hidden flex flex-col"
               >
-                <LogViewer logs={activeTask?.logs || []} onClear={() => activeTaskId && updateTask(activeTaskId, { logs: [] })} onClose={() => setShowLogs(false)} dragControls={mobileDragControls} />
+                <LogViewer logs={globalLogs} onClear={() => setGlobalLogs([])} onClose={() => setShowLogs(false)} dragControls={mobileDragControls} />
               </motion.div>
             </>
           )}
