@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Music, History, Settings, Keyboard, Shield, Menu, X, Terminal } from 'lucide-react';
+import { Music, History, Settings, Keyboard, Shield, Menu, X, Terminal, Github } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 
@@ -102,6 +102,15 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
                   <Terminal className="w-5 h-5" />
                   <span>{showLogs ? 'Hide Logs' : 'View Logs'}</span>
                 </button>
+                <a
+                  href="https://github.com/anlaki-py/rokaru"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 text-secondary hover:text-primary hover:bg-surface-highlight/30"
+                >
+                  <Github className="w-5 h-5" />
+                  <span>GitHub</span>
+                </a>
               </nav>
 
               <div className="mt-auto pt-6 border-t border-white/5">
@@ -160,6 +169,15 @@ export const MainLayout = ({ children, showLogs, setShowLogs, status }: MainLayo
             <Terminal className="w-5 h-5 shrink-0" />
             <span className="font-medium">{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
           </button>
+          <a
+            href="https://github.com/anlaki-py/rokaru"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group text-secondary hover:text-primary hover:bg-surface-highlight/50"
+          >
+            <Github className="w-5 h-5 shrink-0" />
+            <span className="font-medium">GitHub</span>
+          </a>
         </nav>
 
         <div className="p-4 mt-auto space-y-4">

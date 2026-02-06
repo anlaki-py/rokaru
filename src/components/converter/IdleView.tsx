@@ -18,7 +18,15 @@ export const IdleView = ({ onFileSelect, isDragging }: IdleViewProps) => {
 
   return (
     <motion.div 
-      key="idle" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+      key="idle" 
+      initial={{ opacity: 0, scale: 0.98, y: 20 }} 
+      animate={{ opacity: 1, scale: 1, y: 0 }} 
+      exit={{ opacity: 0, scale: 0.98, y: 10 }}
+      transition={{ 
+        duration: 0.8, 
+        ease: [0.16, 1, 0.3, 1],
+        staggerChildren: 0.1
+      }}
       className="flex flex-col items-center w-full max-w-xl"
     >
       <div className="text-center mb-12 space-y-4">

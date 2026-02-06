@@ -169,10 +169,6 @@ export const SettingsView = ({ selectedFormat, setSelectedFormat }: SettingsView
           </div>
         </div>
       </section>
-
-      <section className="p-8 border border-border border-dashed rounded-3xl bg-surface/10 opacity-50 text-center italic">
-        Advanced settings (Audio bitrate, custom formats) coming in Pro version.
-      </section>
     </div>
   );
 };

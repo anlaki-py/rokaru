@@ -123,8 +123,12 @@ export const ConverterView = (props: ConverterViewProps) => {
         <AnimatePresence>
           {status === 'init' && (
             <motion.div 
-              key="init" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="flex flex-col items-center justify-center text-center space-y-4"
+              key="init" 
+              initial={{ opacity: 0, y: 10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="absolute inset-0 m-auto h-fit w-fit flex flex-col items-center justify-center text-center space-y-4"
             >
               <div className="wrapper">
                 <div className="circle"></div><div className="circle"></div><div className="circle"></div>
@@ -198,15 +202,12 @@ export const ConverterView = (props: ConverterViewProps) => {
         </AnimatePresence>
 
         {/* Scroll Down Indicator */}
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2, duration: 1, repeat: Infinity, repeatType: 'reverse' }}
+        <div 
           className="absolute bottom-12 flex flex-col items-center gap-2 text-secondary opacity-40 hover:opacity-100 transition-opacity cursor-default select-none group"
         >
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] group-hover:text-primary transition-colors">Scroll Down</span>
           <ChevronDown className="w-4 h-4 group-hover:text-primary transition-colors" />
-        </motion.div>
+        </div>
       </div>
 
       <LandingSEO />

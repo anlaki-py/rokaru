@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-This guide implements cutting-edge 2026 SEO strategies specifically tailored for Rōkaru—a privacy-first, client-side video-to-audio converter. Unlike traditional SEO approaches, this strategy accounts for the AI search revolution, changing user behavior, and the cannibalization of informational traffic by ChatGPT and Google's AI Overviews.
+This guide implements cutting-edge 2026 SEO strategies specifically tailored for Rōkaru - a privacy-first, client-side video-to-audio converter. Unlike traditional SEO approaches, this strategy accounts for the AI search revolution, changing user behavior, and the cannibalization of informational traffic by ChatGPT and Google's AI Overviews.
 
-**Product:** Rōkaru (https://rokaru.vercel.app/)  
+**Product:** Rōkaru (https://rokaru.anlaki.dev/)  
 **Core Technology:** ffmpeg.wasm (client-side processing)  
 **Primary Differentiator:** Complete privacy through local conversion  
 **Target:** Sustainable organic growth in the AI-dominated search landscape
@@ -131,7 +131,7 @@ Rōkaru processes all video conversions directly in your web browser using WebAs
 3. Conversion executes using your CPU
 4. The audio file saves directly to your device
 
-We don't track conversions, don't use analytics cookies, and don't store any file data. You can verify this by monitoring network traffic in your browser's developer tools—no upload requests occur during conversion.
+We don't track conversions, don't use analytics cookies, and don't store any file data. You can verify this by monitoring network traffic in your browser's developer tools - no upload requests occur during conversion.
 ```
 
 **Why this works:** Directly answers common AI queries with verifiable, technical accuracy.
@@ -171,7 +171,7 @@ We don't track conversions, don't use analytics cookies, and don't store any fil
 ```
 "Verify Our Privacy Claims Yourself"
 
-Rōkaru's privacy isn't marketing—it's architecture. Open your browser's Network tab and watch: zero uploads during conversion. All processing happens locally using ffmpeg.wasm.
+Rōkaru's privacy isn't marketing - it's architecture. Open your browser's Network tab and watch: zero uploads during conversion. All processing happens locally using ffmpeg.wasm.
 
 [Link to technical privacy breakdown]
 ```
@@ -200,7 +200,7 @@ Rōkaru's privacy isn't marketing—it's architecture. Open your browser's Netwo
 ```
 "No Limits. No Signups. Just Conversion."
 
-Convert 100MB or 10GB videos—no artificial restrictions. Since processing happens on your device, file size only affects your conversion time, not ours.
+Convert 100MB or 10GB videos - no artificial restrictions. Since processing happens on your device, file size only affects your conversion time, not ours.
 
 [Select Video] → No queue. No upload time. Instant start.
 ```
@@ -232,7 +232,7 @@ Convert 100MB or 10GB videos—no artificial restrictions. Since processing happ
 
 1. Select your video file
 2. Choose audio format (MP3, WAV, etc.)
-3. Click Convert—files process in your browser
+3. Click Convert - files process in your browser
 4. Download your audio
 
 No complicated steps. No hidden catches. Your files stay on your computer the entire time.
@@ -262,7 +262,7 @@ No complicated steps. No hidden catches. Your files stay on your computer the en
 ```
 "Professional-Grade Extraction, Browser-Based"
 
-Extract lossless audio (FLAC, WAV, ALAC) for professional workflows. All processing uses ffmpeg—the industry standard—running directly in your browser.
+Extract lossless audio (FLAC, WAV, ALAC) for professional workflows. All processing uses ffmpeg - the industry standard - running directly in your browser.
 
 Supports: [comprehensive format list]
 ```
@@ -689,7 +689,7 @@ AI tools can generate generic information instantly. Your content must contain w
 
 ### Why Combining Strategies Multiplies Results
 
-**Insight from award-winning campaigns:** The real power isn't picking one strategy—it's integrating multiple approaches strategically.
+**Insight from award-winning campaigns:** The real power isn't picking one strategy - it's integrating multiple approaches strategically.
 
 ### Integrated Strategy Map for Rōkaru
 
@@ -880,7 +880,7 @@ AI tools can generate generic information instantly. Your content must contain w
     },
     {
       "@type": "HowToStep",
-      "text": "Click 'Convert'—processing begins locally"
+      "text": "Click 'Convert' - processing begins locally"
     },
     {
       "@type": "HowToStep",
@@ -928,7 +928,7 @@ AI tools can generate generic information instantly. Your content must contain w
   <ol>
     <li>Select your video file (MP4, AVI, MOV, MKV, WebM, etc.)</li>
     <li>Choose output format (MP3, WAV, FLAC, AAC, OGG)</li>
-    <li>Click Convert—processing begins in your browser</li>
+    <li>Click Convert - processing begins in your browser</li>
     <li>Download your audio file</li>
   </ol>
   
@@ -948,7 +948,7 @@ AI tools can generate generic information instantly. Your content must contain w
   <div itemscope itemprop="mainEntity" itemtype="https://schema.org/Question">
     <h3 itemprop="name">How can I verify my files don't upload?</h3>
     <div itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
-      <p itemprop="text">Open your browser's Developer Tools (F12), go to the Network tab, then convert a file. You'll see zero upload requests—proof that processing is entirely local.</p>
+      <p itemprop="text">Open your browser's Developer Tools (F12), go to the Network tab, then convert a file. You'll see zero upload requests - proof that processing is entirely local.</p>
     </div>
   </div>
   <!-- Additional FAQs -->
@@ -1177,7 +1177,7 @@ The complete data and methodology are here: [link]
 
 I thought your audience might find this valuable since [specific relevance to their content].
 
-No ask here—just sharing in case it's useful for a future article or resource.
+No ask here - just sharing in case it's useful for a future article or resource.
 
 Best,
 [Your Name]
@@ -1298,7 +1298,7 @@ Happy to answer specific technical questions. [Link to technical deep-dive artic
 - "Great feedback from a user: 'Finally, a converter I can trust with sensitive client videos.' Privacy-first design resonating. 🔒"
 
 **Friday:** Behind-the-scenes / learning
-- "TIL: WebAssembly can't access the network directly. That's actually a feature, not a bug—security by design. This is why client-side processing is inherently more private."
+- "TIL: WebAssembly can't access the network directly. That's actually a feature, not a bug - security by design. This is why client-side processing is inherently more private."
 
 **Hashtags:** #BuildInPublic #PrivacyTech #WebDev #ffmpeg #IndieHacker
 
