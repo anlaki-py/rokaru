@@ -35,6 +35,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        mode: 'development',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
         // Increase maximum size for WASM files (30MB is usually enough for ffmpeg-core.wasm)
         maximumFileSizeToCacheInBytes: 35 * 1024 * 1024,
@@ -43,6 +44,13 @@ export default defineConfig({
   ],
   server: {
     // Security headers required for FFmpeg WASM (SharedArrayBuffer)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+  preview: {
+    // Security headers required for FFmpeg WASM in production preview
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',

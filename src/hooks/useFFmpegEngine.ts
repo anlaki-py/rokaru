@@ -4,38 +4,21 @@ import { toBlobURL } from '../vendor/util/index.js';
 import { opfs } from '../lib/storage';
 import { validateVideoFile } from '../lib/validation';
 import { haptic, formatBytes } from '../lib/utils';
-import { AudioFormat } from '../App';
-
-type AppStatus = 'init' | 'idle' | 'reading' | 'ready' | 'processing' | 'done' | 'error';
+import { ConversionTask, AppStatus } from '../App';
 
 const CACHE_NAME = 'rokaru-core-v1';
 
 interface UseFFmpegEngineProps {
-  status: AppStatus;
-  setStatus: (s: AppStatus) => void;
-  addLog: (msg: string) => void;
-  setLogs: (logs: string[] | ((prev: string[]) => string[])) => void;
-  setProgress: (p: number) => void;
-  setLoadProgress: (p: number) => void;
-  ffmpegRef: React.MutableRefObject<FFmpeg>;
-  setFileName: (s: string) => void;
-  setFileSize: (n: number) => void;
-  setMetadata: (m: any) => void;
-  setIsMetadataLoading: (b: boolean) => void;
-  setShowMetadata: (b: boolean) => void;
-  setErrorMessage: (s: string | null) => void;
-  setOutputUrl: (s: string | null) => void;
-  setOutputExt: (s: string) => void;
-  selectedFormat: AudioFormat;
-  metadata: any;
-  fileName: string;
+  task: ConversionTask;
+  updateTask: (taskId: string, updates: Partial<ConversionTask>) => void;
+  addLog: (taskId: string, msg: string) => void;
+  onGlobalLoadProgress?: (p: number) => void;
 }
 
 export const useFFmpegEngine = ({
-  status, setStatus, addLog, setLogs, setProgress, setLoadProgress, ffmpegRef,
-  setFileName, setFileSize, setMetadata, setIsMetadataLoading, setShowMetadata,
-  setErrorMessage, setOutputUrl, setOutputExt, selectedFormat, metadata, fileName
+  task, updateTask, addLog, onGlobalLoadProgress
 }: UseFFmpegEngineProps) => {
+  const ffmpegRef = useRef(new FFmpeg());
 
   const fetchWithProgress = async (url: string, onProgress: (progress: number) => void): Promise<string> => {
     const request = new Request(url);
@@ -101,23 +84,58 @@ export const useFFmpegEngine = ({
     return URL.createObjectURL(blob);
   };
 
-  useEffect(() => {
-    if (status !== 'init') return;
+  const processFile = useCallback(async (file: File) => {
+    haptic.medium();
+    const inputFilename = `input_${task.id}.mp4`;
     
+    try {
+      // Validate first (reads small chunk)
+      const { valid, format } = await validateVideoFile(file);
+      if (!valid) throw new Error('Invalid file content. Not a recognized video format.');
+
+      addLog(task.id, `Reading file: ${file.name} (${formatBytes(file.size)})`);
+
+      // Save to OPFS immediately
+      await opfs.saveFile(inputFilename, file);
+      
+      updateTask(task.id, { status: 'ready' });
+      haptic.success();
+      addLog(task.id, 'File saved to local storage.');
+    } catch (e: any) {
+      updateTask(task.id, { status: 'error', errorMessage: e.message || 'Failed to process file' });
+      haptic.error();
+      addLog(task.id, `Read error: ${e.message}`);
+    }
+  }, [task.id, updateTask, addLog]);
+
+  // Effect 1: Process file immediately on mount if reading
+  useEffect(() => {
+    if (task.status === 'reading') {
+      processFile(task.file);
+    }
+    // We strictly depend on empty dependency array (run once) + task.status guard
+    // logic to prevent infinite loops, although processFile changes status to 'ready'
+    // so it wouldn't loop anyway.
+  }, []); 
+
+  // Effect 2: Load FFmpeg Engine
+  useEffect(() => {
     const load = async () => {
+      if (ffmpegRef.current.loaded) return;
+
       const ffmpeg = ffmpegRef.current;
       
       ffmpeg.on('log', ({ type, message }: { type: string, message: string }) => {
         if (typeof message === 'string') {
           if (!message.startsWith('frame=') && !message.startsWith('size=')) {
-            setLogs(prev => [...prev.slice(-199), `[${type}] ${message}`]);
+            addLog(task.id, `[${type}] ${message}`);
           }
         }
       });
 
       ffmpeg.on('progress', ({ progress }: { progress: number }) => {
         const p = Math.max(0, Math.min(100, Math.round(progress * 100)));
-        setProgress(p);
+        updateTask(task.id, { progress: p });
       });
 
       try {
@@ -125,37 +143,36 @@ export const useFFmpegEngine = ({
           throw new Error('This app requires a secure context (HTTPS or localhost) to function.');
         }
         
-        if (!navigator.storage || !navigator.storage.getDirectory) {
-          throw new Error('Your browser does not support the required Storage API. Please use a modern browser.');
-        }
-
         const baseURL = window.location.origin + '/core';
         const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-        const wasmURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, (p) => setLoadProgress(Math.round(p)));
+        const wasmURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, (p) => {
+          updateTask(task.id, { loadProgress: Math.round(p) });
+          onGlobalLoadProgress?.(Math.round(p));
+        });
 
         await ffmpeg.load({ coreURL, wasmURL });
-        setStatus('idle');
-        addLog('Engine ready. Select a video to begin.');
       } catch (error: any) {
         console.error(error);
-        setErrorMessage(error?.message || 'System failed to start');
-        setStatus('error');
-        addLog(`System failed to start: ${error?.message}`);
+        // Only set error if we aren't already in error state from file read
+        updateTask(task.id, { status: 'error', errorMessage: error?.message || 'Engine failed' });
+        addLog(task.id, `System failed to start: ${error?.message}`);
       }
     };
+
     load();
   }, []);
 
-  const fetchMetadata = async () => {
-    if (metadata) {
-      setShowMetadata(true);
+  const fetchMetadata = useCallback(async () => {
+    if (task.metadata) {
+      updateTask(task.id, { showMetadata: true });
       return;
     }
 
-    setIsMetadataLoading(true);
+    updateTask(task.id, { isMetadataLoading: true });
     haptic.medium();
     const ffmpeg = ffmpegRef.current;
-    const probeFilename = `probe_${Date.now()}.mp4`;
+    const probeFilename = `probe_${task.id}_${Date.now()}.mp4`;
+    const inputFilename = `input_${task.id}.mp4`;
     
     const stdout: string[] = [];
     const stderr: string[] = [];
@@ -165,8 +182,8 @@ export const useFFmpegEngine = ({
     };
 
     try {
-      addLog('Analyzing file...');
-      const inputFile = await opfs.readFile('input.mp4');
+      addLog(task.id, 'Analyzing file...');
+      const inputFile = await opfs.readFile(inputFilename);
       const CHUNK_SIZE = 50 * 1024 * 1024;
       const totalSize = inputFile.size;
       let offset = 0;
@@ -179,9 +196,9 @@ export const useFFmpegEngine = ({
         offset += CHUNK_SIZE;
       }
 
-      addLog('Extracting audio info...');
+      addLog(task.id, 'Extracting audio info...');
       ffmpeg.on('log', logCollector);
-      const ret = await ffmpeg.ffprobe([
+      const ret = await (ffmpeg as any).ffprobe([
         '-hide_banner', '-show_format', '-show_streams', '-print_format', 'json', probeFilename
       ]);
       ffmpeg.off('log', logCollector);
@@ -189,90 +206,59 @@ export const useFFmpegEngine = ({
       const combinedStdout = stdout.join('').trim();
       const combinedStderr = stderr.join('\n').trim();
 
+      let metadata = null;
       try {
         if (combinedStdout) {
-          const json = JSON.parse(combinedStdout);
-          setMetadata(json);
+          metadata = JSON.parse(combinedStdout);
         } else {
-          setMetadata(combinedStderr || 'No info output received.');
+          metadata = combinedStderr || 'No info output received.';
         }
       } catch (parseError) {
-        setMetadata(combinedStdout || combinedStderr || 'Failed to parse info.');
+        metadata = combinedStdout || combinedStderr || 'Failed to parse info.';
       }
 
-      setShowMetadata(true);
-      addLog('Audio information extracted successfully.');
+      updateTask(task.id, { metadata, showMetadata: true });
+      addLog(task.id, 'Audio information extracted successfully.');
     } catch (e: any) {
-      addLog(`Failed to extract metadata: ${e.message}`);
+      addLog(task.id, `Failed to extract metadata: ${e.message}`);
       haptic.error();
     } finally {
       ffmpeg.off('log', logCollector);
       try { await ffmpeg.deleteFile(probeFilename); } catch (e) {}
-      setIsMetadataLoading(false);
+      updateTask(task.id, { isMetadataLoading: false });
     }
-  };
+  }, [task.id, task.metadata]);
 
-  const processFile = async (file: File) => {
+  const extractAudio = useCallback(async () => {
     haptic.medium();
-    setErrorMessage(null);
-    setStatus('reading');
-    
-    try {
-      const { valid, format } = await validateVideoFile(file);
-      if (!valid) throw new Error('Invalid file content. Not a recognized video format.');
-
-      setFileName(file.name);
-      setFileSize(file.size);
-      setLogs([]);
-      setMetadata(null);
-      addLog(`Reading file: ${file.name} (${formatBytes(file.size)})`);
-
-      await opfs.saveFile('input.mp4', file);
-      setStatus('ready');
-      haptic.success();
-      addLog('File saved to local storage.');
-    } catch (e: any) {
-      setErrorMessage(e.message || 'Failed to process file');
-      setStatus('error');
-      haptic.error();
-      addLog(`Read error: ${e.message}`);
-    }
-  };
-
-  const extractAudio = async () => {
-    haptic.medium();
-    setStatus('processing');
+    updateTask(task.id, { status: 'processing', progress: 0 });
     const ffmpeg = ffmpegRef.current;
+    const inputFilename = `input_${task.id}.mp4`;
 
     try {
-      try {
-        await ffmpeg.deleteFile('input.mp4');
-        await ffmpeg.deleteFile('output.mp3');
-      } catch (e) {}
-
-      addLog('Preparing file for secure processing...');
-      const inputFile = await opfs.readFile('input.mp4');
+      addLog(task.id, 'Preparing file for secure processing...');
+      const inputFile = await opfs.readFile(inputFilename);
       const CHUNK_SIZE = 50 * 1024 * 1024;
       const totalSize = inputFile.size;
       let offset = 0;
 
-      await ffmpeg.writeFile('input.mp4', new Uint8Array(0));
+      await ffmpeg.writeFile(inputFilename, new Uint8Array(0));
       while (offset < totalSize) {
         const chunk = inputFile.slice(offset, offset + CHUNK_SIZE);
         const buffer = await chunk.arrayBuffer();
-        await (ffmpeg as any).appendFile('input.mp4', new Uint8Array(buffer), offset);
+        await (ffmpeg as any).appendFile(inputFilename, new Uint8Array(buffer), offset);
         offset += CHUNK_SIZE;
         if (offset % (CHUNK_SIZE * 5) === 0 || offset >= totalSize) {
-           addLog(`Loading: ${Math.min(100, Math.round((offset / totalSize) * 100))}%`);
+           addLog(task.id, `Loading: ${Math.min(100, Math.round((offset / totalSize) * 100))}%`);
         }
       }
       
-      addLog('Extracting high-quality audio...');
-      let outputExt = selectedFormat;
-      let ffmpegArgs: string[] = ['-i', 'input.mp4', '-vn', '-map', 'a'];
+      addLog(task.id, 'Extracting high-quality audio...');
+      let outputExt = task.selectedFormat;
+      let ffmpegArgs: string[] = ['-i', inputFilename, '-vn', '-map', 'a'];
 
-      if (selectedFormat === 'original') {
-        const audioStream = metadata?.streams?.find((s: any) => s.codec_type === 'audio');
+      if (task.selectedFormat === 'original') {
+        const audioStream = task.metadata?.streams?.find((s: any) => s.codec_type === 'audio');
         const codec = audioStream?.codec_name || 'aac';
         const codecMap: Record<string, string> = { 'aac': 'm4a', 'mp3': 'mp3', 'vorbis': 'ogg', 'opus': 'opus', 'flac': 'flac', 'pcm_s16le': 'wav' };
         outputExt = codecMap[codec] || 'm4a';
@@ -285,17 +271,16 @@ export const useFFmpegEngine = ({
           flac: ['-acodec', 'flac'],
           m4a: ['-acodec', 'aac', '-b:a', '192k']
         };
-        ffmpegArgs.push(...(formatConfig[selectedFormat] || formatConfig.mp3));
+        ffmpegArgs.push(...(formatConfig[task.selectedFormat] || formatConfig.mp3));
       }
 
-      setOutputExt(outputExt);
-      const outputFileName = `output.${outputExt}`;
+      const outputFileName = `output_${task.id}.${outputExt}`;
       ffmpegArgs.push(outputFileName);
 
       const ret = await ffmpeg.exec(ffmpegArgs);
       if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`);
 
-      addLog('Conversion successful. Generating blob...');
+      addLog(task.id, 'Conversion successful. Generating blob...');
       const data = await ffmpeg.readFile(outputFileName);
       
       const typeMap: Record<string, string> = {
@@ -304,16 +289,21 @@ export const useFFmpegEngine = ({
       const blob = new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: typeMap[outputExt] || 'audio/mpeg' });
       const url = URL.createObjectURL(blob);
       
-      setOutputUrl(url);
-      setStatus('done');
+      updateTask(task.id, { status: 'done', outputUrl: url, outputExt });
       haptic.success();
-      addLog('Process complete.');
+      addLog(task.id, 'Process complete.');
+      
+      // Cleanup FFmpeg memory/files
+      try {
+        await ffmpeg.deleteFile(inputFilename);
+        await ffmpeg.deleteFile(outputFileName);
+      } catch (e) {}
     } catch (e: any) {
-      setStatus('error');
+      updateTask(task.id, { status: 'error', errorMessage: e.message });
       haptic.error();
-      addLog(`Conversion failed: ${e.message}`);
+      addLog(task.id, `Conversion failed: ${e.message}`);
     }
-  };
+  }, [task.id, task.selectedFormat, task.metadata]);
 
   return { fetchMetadata, processFile, extractAudio };
 };

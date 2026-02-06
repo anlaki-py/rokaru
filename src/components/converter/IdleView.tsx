@@ -4,16 +4,16 @@ import { Upload } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface IdleViewProps {
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: FileList) => void;
   isDragging: boolean;
 }
 
-export const IdleView = ({ onFileSelect, isDragging }: IdleViewProps) => {
+export const IdleView = ({ onFilesSelect, isDragging }: IdleViewProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files[0]) onFileSelect(files[0]);
+    if (files && files.length > 0) onFilesSelect(files);
   };
 
   return (
@@ -43,6 +43,7 @@ export const IdleView = ({ onFileSelect, isDragging }: IdleViewProps) => {
         accept="video/*" 
         onChange={handleFileInput} 
         className="hidden" 
+        multiple
       />
       <button 
         onClick={() => inputRef.current?.click()}

@@ -9,13 +9,16 @@ import { AudioFormat } from '../App';
 interface SettingsViewProps {
   selectedFormat: AudioFormat;
   setSelectedFormat: (f: AudioFormat) => void;
+  maxConcurrency: number;
+  setMaxConcurrency: (n: number) => void;
 }
 
-export const SettingsView = ({ selectedFormat, setSelectedFormat }: SettingsViewProps) => {
+export const SettingsView = ({ 
+  selectedFormat, setSelectedFormat, maxConcurrency, setMaxConcurrency 
+}: SettingsViewProps) => {
   const handleDefaultFormatChange = (fmt: AudioFormat) => {
     haptic.light();
     setSelectedFormat(fmt);
-    localStorage.setItem('defaultFormat', fmt);
   };
 
   const factoryReset = async () => {
@@ -91,6 +94,27 @@ export const SettingsView = ({ selectedFormat, setSelectedFormat }: SettingsView
                 {fmt === 'original' ? 'Original' : fmt}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="p-6 rounded-2xl bg-surface/30 border border-border space-y-4">
+          <div>
+            <h3 className="font-medium">Parallel Extractions</h3>
+            <p className="text-xs text-secondary mt-1">Maximum number of videos to process at the same time.</p>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <input 
+              type="range" 
+              min="1" 
+              max="6" 
+              value={maxConcurrency} 
+              onChange={(e) => setMaxConcurrency(parseInt(e.target.value))}
+              className="flex-1 h-2 bg-surface-highlight rounded-lg appearance-none cursor-pointer accent-primary"
+            />
+            <span className="w-12 text-center font-mono text-xl font-bold text-primary bg-surface-highlight/50 px-3 py-1 rounded-lg border border-white/5">
+              {maxConcurrency}
+            </span>
           </div>
         </div>
       </section>

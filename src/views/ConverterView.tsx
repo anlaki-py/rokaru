@@ -1,114 +1,126 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, ChevronDown } from 'lucide-react';
-import { FFmpeg } from '../vendor/ffmpeg/index.js';
+import { AlertCircle, ChevronDown, Plus, Upload } from 'lucide-react';
 import { haptic } from '../lib/utils';
 import { opfs } from '../lib/storage';
-import { AudioFormat } from '../App';
+import { AudioFormat, ConversionTask, AppStatus } from '../App';
 
 // Modular Components
 import { LandingSEO } from '../components/layout/LandingSEO';
 import { MetadataModal } from '../components/ui/MetadataModal';
 import { IdleView } from '../components/converter/IdleView';
-import { ConversionProgress } from '../components/converter/ConversionProgress';
-import { ResultView } from '../components/converter/ResultView';
-import { Button } from '../components/ui/Button';
+import { BatchFileItem } from '../components/converter/BatchFileItem';
+import { BatchControls } from '../components/converter/BatchControls';
 
 // Hooks
 import { useFFmpegEngine } from '../hooks/useFFmpegEngine';
 
-type AppStatus = 'init' | 'idle' | 'reading' | 'ready' | 'processing' | 'done' | 'error';
+interface TaskRunnerProps {
+  task: ConversionTask;
+  updateTask: (taskId: string, updates: Partial<ConversionTask>) => void;
+  addLog: (taskId: string, msg: string) => void;
+  onGlobalLoadProgress?: (p: number) => void;
+}
+
+const TaskRunner = ({ task, updateTask, addLog, onGlobalLoadProgress }: TaskRunnerProps) => {
+  const { fetchMetadata, extractAudio } = useFFmpegEngine({
+    task,
+    updateTask,
+    addLog,
+    onGlobalLoadProgress
+  });
+
+  useEffect(() => {
+    if (task.status === 'processing' && task.triggerExtract) {
+      updateTask(task.id, { triggerExtract: false });
+      extractAudio();
+    }
+    // Probe logic if needed in future (currently unused in batch view but kept for safety)
+    if (task.status === 'ready' && task.triggerProbe) {
+      updateTask(task.id, { triggerProbe: false });
+      fetchMetadata();
+    }
+  }, [task.status, task.triggerExtract, task.triggerProbe, extractAudio, fetchMetadata, task.id, updateTask]);
+
+  return null;
+};
 
 interface ConverterViewProps {
-  status: AppStatus;
-  setStatus: (s: AppStatus) => void;
-  addLog: (msg: string) => void;
-  setLogs: (logs: string[] | ((prev: string[]) => string[])) => void;
-  setProgress: (p: number) => void;
-  progress: number;
-  ffmpegRef: React.MutableRefObject<FFmpeg>;
-  loadProgress: number;
-  setLoadProgress: (p: number) => void;
-  fileName: string;
-  setFileName: (s: string) => void;
-  fileSize: number;
-  setFileSize: (n: number) => void;
-  outputUrl: string | null;
-  setOutputUrl: (s: string | null) => void;
-  metadata: any;
-  setMetadata: (m: any) => void;
-  isMetadataLoading: boolean;
-  setIsMetadataLoading: (b: boolean) => void;
-  showMetadata: boolean;
-  setShowMetadata: (b: boolean) => void;
-  errorMessage: string | null;
-  setErrorMessage: (s: string | null) => void;
-  selectedFormat: AudioFormat;
-  setSelectedFormat: (f: AudioFormat) => void;
-  outputExt: string;
-  setOutputExt: (s: string) => void;
+  tasks: ConversionTask[];
+  activeTaskId: string | null;
+  setActiveTaskId: (id: string | null) => void;
+  addTask: (file: File) => void;
+  removeTask: (taskId: string) => void;
+  updateTask: (taskId: string, updates: Partial<ConversionTask>) => void;
+  addLog: (taskId: string, msg: string) => void;
+  globalStatus: AppStatus;
+  setGlobalStatus: (s: AppStatus) => void;
+  globalLoadProgress: number;
+  setGlobalLoadProgress: (p: number) => void;
+  maxConcurrency: number;
+  setMaxConcurrency: (n: number) => void;
 }
 
 export const ConverterView = (props: ConverterViewProps) => {
   const { 
-    status, setStatus, addLog, progress, loadProgress, 
-    fileName, setFileName, fileSize, outputUrl, setOutputUrl, metadata,
-    isMetadataLoading, showMetadata, setShowMetadata, errorMessage, setErrorMessage,
-    selectedFormat, setSelectedFormat, outputExt
+    tasks, activeTaskId, setActiveTaskId, addTask, removeTask, updateTask,
+    addLog, globalStatus, globalLoadProgress, setGlobalLoadProgress,
+    maxConcurrency, setMaxConcurrency
   } = props;
 
   const [isDragging, setIsDragging] = useState(false);
-  const audioPlayerRef = useRef<any>(null);
 
-  const { fetchMetadata, processFile, extractAudio } = useFFmpegEngine(props);
-
-  // --- Navigation State Management ---
   useEffect(() => {
-    const checkState = async () => {
+    const checkStorage = async () => {
       try {
         await opfs.init();
-        if (status === 'ready' || status === 'processing') {
-          await opfs.readFile('input.mp4');
-        }
       } catch (e) {
-        if (['reading', 'ready', 'processing'].includes(status)) {
-          console.warn('State inconsistency detected. Resetting to idle.');
-          setStatus('idle');
-        }
+        console.error('Storage initialization failed', e);
       }
     };
-    checkState();
-    
-    if (status === 'done' && !outputUrl) {
-       setStatus('idle');
-    }
+    checkStorage();
   }, []);
 
   const handleDrag = useCallback((e: React.DragEvent, active: boolean) => {
     e.preventDefault(); e.stopPropagation();
-    if (status === 'idle') setIsDragging(active);
-  }, [status]);
+    if (globalStatus !== 'init') setIsDragging(active);
+  }, [globalStatus]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
-    if (status !== 'idle') return;
+    if (globalStatus === 'init') return;
     const files = e.dataTransfer.files;
-    if (files && files[0]) processFile(files[0]);
-  }, [status, processFile]);
+    if (files && files.length > 0) {
+      Array.from(files).forEach(file => addTask(file));
+    }
+  }, [globalStatus, addTask]);
 
-  const reset = () => {
-    haptic.light();
-    setFileName('');
-    props.setFileSize(0);
-    props.setMetadata(null);
-    const defaultFmt = (localStorage.getItem('defaultFormat') as AudioFormat) || 'mp3';
-    setSelectedFormat(defaultFmt);
-    setOutputUrl(null);
-    props.setProgress(0);
-    setStatus('idle');
-    addLog('Reset state. Ready for new task.');
+  const onFilesSelect = (files: FileList) => {
+    Array.from(files).forEach(file => addTask(file));
   };
+
+  const handleStartAll = () => {
+    haptic.success();
+    // Move all 'ready' tasks to 'queued'
+    tasks.forEach(task => {
+      if (task.status === 'ready') {
+        updateTask(task.id, { status: 'queued' });
+      }
+    });
+  };
+
+  const handleClearAll = () => {
+    haptic.medium();
+    // Remove all tasks that are not processing
+    tasks.forEach(task => {
+      if (task.status !== 'processing') {
+        removeTask(task.id);
+      }
+    });
+  };
+
+  const isProcessingAny = tasks.some(t => t.status === 'processing' || t.status === 'queued');
 
   return (
     <div 
@@ -118,16 +130,27 @@ export const ConverterView = (props: ConverterViewProps) => {
       onDragLeave={(e) => handleDrag(e, false)}
       onDrop={onDrop}
     >
+      {/* Hidden Task Runners for Parallelism */}
+      {tasks.map(task => (
+        <TaskRunner 
+          key={task.id} 
+          task={task} 
+          updateTask={updateTask} 
+          addLog={addLog} 
+          onGlobalLoadProgress={setGlobalLoadProgress}
+        />
+      ))}
+
       {/* Main Converter Area */}
-      <div className="min-h-[calc(100dvh-6rem)] md:min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-8 w-full max-w-5xl relative">
-        <AnimatePresence>
-          {status === 'init' && (
+      <div className="min-h-[calc(100dvh-6rem)] md:min-h-[100dvh] flex flex-col items-center justify-center p-4 md:p-8 w-full max-w-4xl relative z-10">
+        <AnimatePresence mode="wait">
+          {globalStatus === 'init' && (
             <motion.div 
               key="init" 
               initial={{ opacity: 0, y: 10 }} 
               animate={{ opacity: 1, y: 0 }} 
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.8 }}
               className="absolute inset-0 m-auto h-fit w-fit flex flex-col items-center justify-center text-center space-y-4"
             >
               <div className="wrapper">
@@ -137,85 +160,89 @@ export const ConverterView = (props: ConverterViewProps) => {
               <div className="mt-8 flex flex-col items-center gap-3 w-48">
                 <p className="text-sm text-secondary font-medium animate-pulse">Initializing Core...</p>
                 <div className="h-1.5 w-full bg-surface-highlight rounded-full overflow-hidden border border-white/5">
-                  <motion.div className="h-full bg-primary" initial={{ width: 0 }} animate={{ width: `${loadProgress}%` }} />
+                  <motion.div className="h-full bg-primary" initial={{ width: 0 }} animate={{ width: `${globalLoadProgress}%` }} />
                 </div>
-                <p className="text-[10px] text-zinc-600 font-mono tracking-wider">{loadProgress}%</p>
               </div>
             </motion.div>
           )}
 
-          {status === 'idle' && (
-            <IdleView onFileSelect={processFile} isDragging={isDragging} />
+          {tasks.length === 0 && globalStatus !== 'init' && (
+            <IdleView onFilesSelect={onFilesSelect} isDragging={isDragging} />
           )}
 
-          {['reading', 'ready', 'processing'].includes(status) && (
-            <ConversionProgress 
-              status={status as any}
-              fileName={fileName}
-              fileSize={fileSize}
-              progress={progress}
-              selectedFormat={selectedFormat}
-              setSelectedFormat={setSelectedFormat}
-              onExtract={extractAudio}
-              onReset={reset}
-              onProbe={fetchMetadata}
-              isMetadataLoading={isMetadataLoading}
-            />
-          )}
-
-          {status === 'error' && (
+          {tasks.length > 0 && (
             <motion.div 
-              key="error" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              className="text-center space-y-6 py-8"
+              key="batch-view"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full flex flex-col gap-6 items-center"
             >
-              <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto border border-red-500/20">
-                <AlertCircle className="w-10 h-10 text-red-500" />
+              {/* Batch List */}
+              <div className="w-full max-h-[60vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                <AnimatePresence>
+                  {tasks.map(task => (
+                    <BatchFileItem 
+                      key={task.id}
+                      task={task}
+                      updateTask={updateTask}
+                      removeTask={removeTask}
+                      isActive={task.id === activeTaskId}
+                      isOnlyTask={tasks.length === 1}
+                      onActivate={() => {
+                        setActiveTaskId(activeTaskId === task.id ? null : task.id);
+                        updateTask(task.id, { manuallySelected: true });
+                      }}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
-              <div className="space-y-2">
-                <h3 className="font-bold text-2xl text-red-500">System Error</h3>
-                <p className="text-secondary max-w-[300px] mx-auto leading-relaxed text-sm">
-                  {errorMessage || 'Something went wrong during the conversion.'}
-                </p>
-                {errorMessage?.includes('secure context') && (
-                  <div className="mt-4 p-3 rounded-xl bg-surface-highlight/50 border border-white/5 text-[11px] text-zinc-400 max-w-[280px] mx-auto">
-                    <p>Try using <code className="text-primary">http://localhost:5173</code> instead of your local IP address.</p>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
-                <Button variant="secondary" onClick={() => { setStatus('idle'); setErrorMessage(null); }}>
-                  Try Again
-                </Button>
-              </div>
-            </motion.div>
-          )}
 
-          {status === 'done' && outputUrl && (
-            <ResultView 
-              outputUrl={outputUrl}
-              fileName={fileName}
-              outputExt={outputExt}
-              onReset={reset}
-              audioPlayerRef={audioPlayerRef}
-            />
+              {/* Add More Area (Mini Dropzone) */}
+              <div 
+                className={`w-full border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
+                  isDragging 
+                    ? 'border-primary bg-primary/5 scale-[0.99]' 
+                    : 'border-white/10 hover:border-white/20 hover:bg-white/5'
+                }`}
+                onClick={() => {
+                   const input = document.createElement('input');
+                   input.type = 'file';
+                   input.accept = 'video/*';
+                   input.multiple = true;
+                   input.onchange = (e: any) => {
+                     if (e.target.files) onFilesSelect(e.target.files);
+                   };
+                   input.click();
+                }}
+              >
+                <div className="flex items-center gap-3 text-secondary">
+                  <Upload className="w-5 h-5" />
+                  <span className="text-sm font-medium">Add more videos</span>
+                </div>
+              </div>
+
+              {/* Controls */}
+              <BatchControls 
+                onStartAll={handleStartAll}
+                onClearAll={handleClearAll}
+                maxConcurrency={maxConcurrency}
+                setMaxConcurrency={setMaxConcurrency}
+                isProcessing={isProcessingAny}
+                hasItems={tasks.some(t => t.status === 'ready' || t.status === 'done')}
+              />
+
+            </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Scroll Down Indicator */}
-        <div 
-          className="absolute bottom-12 flex flex-col items-center gap-2 text-secondary opacity-40 hover:opacity-100 transition-opacity cursor-default select-none group"
-        >
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] group-hover:text-primary transition-colors">Scroll Down</span>
-          <ChevronDown className="w-4 h-4 group-hover:text-primary transition-colors" />
-        </div>
       </div>
 
       <LandingSEO />
 
       <MetadataModal 
-        isOpen={showMetadata} 
-        onClose={() => setShowMetadata(false)} 
-        data={metadata} 
+        isOpen={false} // Disabled in batch view for now to keep UI clean
+        onClose={() => {}} 
+        data={null} 
       />
     </div>
   );

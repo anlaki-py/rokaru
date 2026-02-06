@@ -22,33 +22,34 @@
 
 ## 3. Architecture & Key Concepts
 
+### Batch Processing & Parallelism
+The app uses a task-based architecture to support multiple concurrent extractions.
+*   **`ConversionTask`**: Each uploaded file is wrapped in a task object tracking its specific status, progress, logs, and metadata.
+*   **Queue Management**: Centralized in `App.tsx` via a `useEffect` that monitors `maxConcurrency` (user-adjustable, default 3). It automatically triggers `queued` tasks when slots become available.
+*   **Parallel Engines**: Each task is managed by a `TaskRunner` component which instantiates its own `useFFmpegEngine` hook and `FFmpeg` worker.
+
 ### Client-Side Processing (The Engine)
 The core logic resides in `src/hooks/useFFmpegEngine.ts`.
-*   **Initialization:** Loads `ffmpeg-core.wasm` and `ffmpeg-core.js` from `public/core/`.
-*   **Caching:** Implements a custom caching strategy (`rokaru-core-v1`) to cache the large WASM binary (~30MB) for offline use.
-*   **Memory Management:** 
-    *   Uses **OPFS** to write input files to disk (`input.mp4`) instead of keeping them in RAM.
-    *   `src/lib/storage.ts` includes an `initPromise` lock to prevent race conditions during the first initialization.
+*   **Decoupled Loading**: File reading and OPFS saving are decoupled from FFmpeg WASM loading to prevent "NotReadableError" on mobile devices (where browser file permissions can expire during long loads).
+*   **Memory Management**: 
+    *   Uses **OPFS** with unique filenames (`input_${taskId}.mp4`) to prevent race conditions during parallel processing.
     *   Reads files in chunks (50MB) during processing to support multi-gigabyte files.
-*   **Security:** 
-    *   Strict `COOP` (Cross-Origin-Opener-Policy) and `COEP` (Cross-Origin-Embedder-Policy) headers are **mandatory** in `vite.config.ts` to enable `SharedArrayBuffer`.
-    *   **Do not remove these headers.**
+*   **Caching**: Custom caching strategy (`rokaru-core-v1`) ensures the ~30MB WASM core is shared across tasks and available offline.
 
 ### Data Persistence
-*   **`src/lib/db.ts`**: Manages the `rokaru_db` IndexedDB.
-    *   `conversions` table: Stores history (filename, size, duration, status).
-    *   `settings` table: Stores user preferences.
+*   **`src/lib/db.ts`**: Manages the `rokaru_db` IndexedDB for history and settings.
 
 ### User Interface Flow
-Controlled by `src/views/ConverterView.tsx` via a strict state machine:
-1.  **`init`**: Loading WASM core.
-2.  **`idle`**: Waiting for user input (Drag & Drop area).
-3.  **`reading`**: Validating and writing file to OPFS.
-4.  **`processing`**: FFmpeg conversion in progress (shows progress bar & logs).
-5.  **`done`**: Conversion complete, download available.
-6.  **`error`**: System failure state.
-
-*Note: `AnimatePresence` in `ConverterView` does not use `mode="wait"` to ensure file input DOM elements stay alive during transitions, preventing browser file-permission revocation.*
+Controlled by a list-based state in `src/views/ConverterView.tsx`:
+1.  **`init`**: Initializing application context and secure environment.
+2.  **`idle`**: Waiting for user input (Multi-file Drag & Drop area).
+3.  **`batch-view`**: Displays a vertical list of `BatchFileItem`s.
+    *   **`reading`**: File being saved to OPFS.
+    *   **`ready`**: Waiting for user to "Start Queue".
+    *   **`queued`**: In the concurrency queue.
+    *   **`processing`**: Active FFmpeg extraction.
+    *   **`done`**: Extraction complete. Item can be expanded to reveal a `CustomAudioPlayer`.
+    *   **`error`**: specific task failure (e.g., codec mismatch).
 
 ## 4. Development Workflow
 
@@ -57,42 +58,24 @@ Controlled by `src/views/ConverterView.tsx` via a strict state machine:
 *   `npm run build`: Runs TypeScript validation (`tsc`) and builds the production assets.
 *   `npm run preview`: Previews the built production build.
 
-### User Preferences & Protocols
-*   **Manual Build:** The user prefers to run `npm run build` manually. **Do not** automatically trigger a build after making changes unless explicitly requested.
-*   **Execution Protocol:** See `rules/EXECUTION_PROTOCOL.md`.
-    *   **Scope Isolation:** Never modify code outside the specific task scope.
-    *   **Pre-Execution Forecasting:** Always plan and verify before acting.
-    *   **No Automatic Execution:** You are a static analysis tool; do not run servers or tests yourself.
-*   **SEO Strategy:** See `docs/SEO-strategy-2026.md`. Focuses on "AI Search Optimization" (structuring content for LLMs/Perplexity) and detailed technical "Deep Dives" to build authority.
-
 ## 5. Directory Structure & Key Files
 
 ### `src/`
 *   **`components/`**
-    *   `converter/`: Core logic views.
-        *   `IdleView.tsx`: Drag & drop zone.
-        *   `ConversionProgress.tsx`: Progress bars, log toggles.
-        *   `ResultView.tsx`: Success state with download/playback.
-    *   `ui/`: Reusable primitives (`LogViewer`, `Button`, `MetadataModal`).
-    *   `layout/`: `MainLayout` and `LandingSEO` (SEO content injection).
+    *   `converter/`: Batch processing components.
+        *   `IdleView.tsx`: Multi-file dropzone.
+        *   `BatchFileItem.tsx`: Expandable task item with status and player.
+        *   `BatchControls.tsx`: Concurrency slider and global actions (Start/Clear).
+    *   `ui/`: Reusable primitives.
+        *   `AudioPlayer.tsx`: Full-featured player (expanded view).
+        *   `MiniAudioPlayer.tsx`: Compact player (collapsed view).
 *   **`hooks/`**
-    *   `useFFmpegEngine.ts`: **CRITICAL**. Contains the FFmpeg instantiation, file handling, and conversion logic.
-*   **`lib/`**
-    *   `db.ts`: Database schema definition.
-    *   `storage.ts`: OPFS helper functions.
-    *   `utils.ts`: Formatter helpers.
-*   **`vendor/`**: Local copies of `@ffmpeg` types and utilities (to prevent CDN reliance).
-*   **`views/`**: Top-level route components (`ConverterView`, `SettingsView`).
-
-### `public/core/`
-*   Contains the binary artifacts (`ffmpeg-core.wasm`, `ffmpeg-core.js`). These are large files excluded from git LFS in some setups, but crucial for the app.
-
-### `rules/`
-*   `EXECUTION_PROTOCOL.md`: Governs how the agent should behave (safety, precision).
-*   `SKILLS/`: Contains specific coding standards (e.g., Vercel/React best practices).
+    *   `useFFmpegEngine.ts`: Task-specific FFmpeg orchestration.
+*   **`views/`**
+    *   `ConverterView.tsx`: Main task list coordinator and background `TaskRunner` host.
 
 ## 6. Coding Conventions
-*   **Styling:** Use `clsx` and `tailwind-merge` for class manipulation.
-*   **Type Safety:** Strict TypeScript usage. No `any` unless absolutely necessary (e.g., legacy interaction).
-*   **Performance:** Prefer `useEffect` sparingly; use `useCallback` for event handlers passed to children.
-*   **File Handling:** Always assume files can be >2GB. Use streams or chunks; never load full files into memory if possible.
+*   **Parallelism Safety**: Always use `taskId` for temporary file operations.
+*   **UX Responsiveness**: Ensure heavy operations (like FFmpeg loads) don't block the main thread or file reading.
+*   **Mobile First**: The batch list and players must remain usable on small screens.
+*   **No Auto-Play**: Do not trigger audio playback automatically on expansion.
