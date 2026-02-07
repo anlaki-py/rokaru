@@ -1,9 +1,21 @@
 // src/lib/storage.ts
 
+/**
+ * Service class for interacting with the Origin Private File System (OPFS).
+ * OPFS provides a performant, sandboxed filesystem for large file operations
+ * without blocking the main thread or exhausting browser memory.
+ */
 export class OPFSStorage {
   private root: FileSystemDirectoryHandle | null = null;
   private initPromise: Promise<void> | null = null;
 
+  /**
+   * Initializes the OPFS root directory handle.
+   * Handles feature detection and secure context validation.
+   * 
+   * @returns {Promise<void>} Resolves when storage is ready.
+   * @throws {Error} If storage API is unavailable or access is denied.
+   */
   async init() {
     if (this.root) return;
     if (this.initPromise) return this.initPromise;
@@ -30,6 +42,17 @@ export class OPFSStorage {
     return this.initPromise;
   }
 
+  /**
+   * Saves a file to OPFS.
+   * Uses Synchronous Access Handles in Workers for maximum performance, 
+   * falling back to Writable streams in the main thread.
+   * 
+   * @param {string} filename - Unique name for the file in storage.
+   * @param {ArrayBuffer | Uint8Array | Blob} data - The content to save.
+   * @returns {Promise<void>}
+   * 
+   * @updated 2026-02-07: Improved chunked writing for Blobs to prevent memory spikes.
+   */
   async saveFile(filename: string, data: ArrayBuffer | Uint8Array | Blob): Promise<void> {
     const executeSave = async (isRetry = false): Promise<void> => {
       try {
@@ -45,7 +68,7 @@ export class OPFSStorage {
           fileHandle = await this.root!.getFileHandle(filename, { create: true });
         }
 
-        // Check for Synchronous Access Handle (Worker only)
+        // Check for Synchronous Access Handle (Worker only - highly recommended for FFmpeg)
         // @ts-ignore
         if (fileHandle.createSyncAccessHandle) {
           let accessHandle: any;
@@ -91,6 +114,7 @@ export class OPFSStorage {
           }
         }
       } catch (e: any) {
+        // Handle transient permission errors on mobile devices
         if (!isRetry && (e.name === 'NotAllowedError' || e.name === 'SecurityError' || e.name === 'InvalidStateError')) {
           console.warn(`[OPFS] saveFile transient error, retrying...`, e);
           this.root = null;
@@ -108,6 +132,12 @@ export class OPFSStorage {
     }
   }
 
+  /**
+   * Reads a file from OPFS as a File object.
+   * 
+   * @param {string} filename - The name of the file to read.
+   * @returns {Promise<File>} The file content.
+   */
   async readFile(filename: string): Promise<File> {
     const executeRead = async (isRetry = false): Promise<File> => {
       try {
@@ -126,6 +156,11 @@ export class OPFSStorage {
     return executeRead();
   }
   
+  /**
+   * Deletes a file from OPFS.
+   * 
+   * @param {string} filename - The name of the file to remove.
+   */
   async deleteFile(filename: string): Promise<void> {
     const executeDelete = async (isRetry = false): Promise<void> => {
       try {
@@ -143,6 +178,10 @@ export class OPFSStorage {
     await executeDelete();
   }
   
+  /**
+   * Clears all files in the OPFS root.
+   * Used for application reset or storage maintenance.
+   */
   async clearAll(): Promise<void> {
      try {
        if (!this.root) await this.init();

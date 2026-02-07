@@ -4,23 +4,33 @@ import { db } from '../lib/db';
 import { opfs } from '../lib/storage';
 import { Button } from '../components/ui/Button';
 import { haptic, cn } from '../lib/utils';
-import { AudioFormat } from '../App';
+import { useFileConversion } from '../contexts/FileConversionContext';
+import { AudioFormat } from '../types';
 
-interface SettingsViewProps {
-  selectedFormat: AudioFormat;
-  setSelectedFormat: (f: AudioFormat) => void;
-  maxConcurrency: number;
-  setMaxConcurrency: (n: number) => void;
-}
+/**
+ * Settings view component.
+ * Allows users to manage preferences, storage, and perform a factory reset.
+ */
+export const SettingsView = () => {
+  const { 
+    defaultFormat: selectedFormat, 
+    setDefaultFormat: setSelectedFormat, 
+    maxConcurrency, 
+    setMaxConcurrency 
+  } = useFileConversion();
 
-export const SettingsView = ({ 
-  selectedFormat, setSelectedFormat, maxConcurrency, setMaxConcurrency 
-}: SettingsViewProps) => {
+  /**
+   * Handles changing the default audio format.
+   */
   const handleDefaultFormatChange = (fmt: AudioFormat) => {
     haptic.light();
     setSelectedFormat(fmt);
   };
 
+  /**
+   * Performs a complete factory reset of the application.
+   * Deletes all local data, including IndexedDB, OPFS, caches, and localStorage.
+   */
   const factoryReset = async () => {
     const confirmed = confirm(
       'DANGER: This will permanently delete ALL data, including any locally saved engine files and preferences. The app will reload and start fresh. Continue?'

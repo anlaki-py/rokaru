@@ -11,7 +11,7 @@ interface BatchControlsProps {
   hasItems: boolean;
 }
 
-export const BatchControls = ({ 
+export const BatchControls = React.memo(({ 
   onStartAll, onClearAll, maxConcurrency, setMaxConcurrency, isProcessing, hasItems 
 }: BatchControlsProps) => {
   return (
@@ -57,4 +57,4 @@ export const BatchControls = ({
       </div>
     </div>
   );
-};
+});

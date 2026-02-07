@@ -8,7 +8,7 @@ interface IdleViewProps {
   isDragging: boolean;
 }
 
-export const IdleView = ({ onFilesSelect, isDragging }: IdleViewProps) => {
+export const IdleView = React.memo(({ onFilesSelect, isDragging }: IdleViewProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,9 +44,12 @@ export const IdleView = ({ onFilesSelect, isDragging }: IdleViewProps) => {
         onChange={handleFileInput} 
         className="hidden" 
         multiple
+        aria-label="Upload video files"
       />
       <button 
         onClick={() => inputRef.current?.click()}
+        aria-label="Select video files for conversion"
+        aria-describedby="upload-description"
         className={cn(
           "aspect-square w-full max-w-[320px] md:max-w-[400px] border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center gap-8 transition-all duration-300 group relative overflow-hidden",
           isDragging ? "border-primary bg-surface-highlight/30 scale-[0.98]" : "border-border hover:border-secondary hover:bg-surface-highlight/10 bg-surface/30"
@@ -56,11 +59,11 @@ export const IdleView = ({ onFilesSelect, isDragging }: IdleViewProps) => {
         <div className="w-24 h-24 rounded-full bg-surface-highlight shadow-lg group-hover:scale-110 transition-transform duration-300 flex items-center justify-center relative z-10">
           <Upload className="w-10 h-10 text-secondary group-hover:text-primary transition-colors" />
         </div>
-        <div className="text-center px-4 relative z-10">
+        <div id="upload-description" className="text-center px-4 relative z-10">
           <h3 className="font-bold text-primary text-xl md:text-2xl tracking-tight">Select Video</h3>
           <p className="text-sm text-secondary mt-2 font-mono uppercase tracking-wide opacity-70">MP4 • MOV • WEBM</p>
         </div>
       </button>
     </motion.div>
   );
-};
+});

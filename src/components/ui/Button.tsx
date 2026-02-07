@@ -27,6 +27,7 @@ export const Button = ({
     <button 
       className={cn(baseStyles, variants[variant], className)} 
       disabled={isLoading || props.disabled}
+      aria-busy={isLoading}
       onClick={(e) => {
         if (!props.disabled && !isLoading) haptic.light();
         props.onClick?.(e);

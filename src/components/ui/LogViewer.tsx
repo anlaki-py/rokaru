@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Terminal as TerminalIcon, X, FileText } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { LogEntry } from '../../App';
+import { LogEntry } from '../../types';
 
 interface LogViewerProps {
   logs: LogEntry[];

@@ -1,25 +1,36 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { FFmpeg } from '../vendor/ffmpeg/index.js';
-import { toBlobURL } from '../vendor/util/index.js';
 import { opfs } from '../lib/storage';
 import { validateVideoFile } from '../lib/validation';
 import { haptic, formatBytes } from '../lib/utils';
-import { ConversionTask, AppStatus } from '../App';
+import { getFFmpegArgs, getOriginalExtension } from '../lib/ffmpegUtils';
+import { ConversionTask } from '../types';
+import { useCleanup } from './useCleanup';
+import { logger } from '../lib/logger';
 
 const CACHE_NAME = 'rokaru-core-v1';
 
 interface UseFFmpegEngineProps {
   task: ConversionTask;
   updateTask: (taskId: string, updates: Partial<ConversionTask>) => void;
-  addLog: (taskId: string, msg: string) => void;
+  addLog: (taskId: string, message: string) => void;
   onGlobalLoadProgress?: (p: number) => void;
 }
 
+/**
+ * Custom hook that orchestrates the FFmpeg engine for a single conversion task.
+ * Handles engine loading, file processing, metadata extraction, and audio extraction.
+ */
 export const useFFmpegEngine = ({
   task, updateTask, addLog, onGlobalLoadProgress
 }: UseFFmpegEngineProps) => {
-  const ffmpegRef = useRef(new FFmpeg());
+  const ffmpegRef = useRef<any>(null);
+  const lastProgressRef = useRef<number>(0);
+  const lastProgressTimeRef = useRef<number>(0);
+  const { createBlobUrl } = useCleanup();
 
+  /**
+   * Fetches a file with progress tracking and caching support.
+   */
   const fetchWithProgress = async (url: string, onProgress: (progress: number) => void): Promise<string> => {
     const request = new Request(url);
     try {
@@ -29,7 +40,7 @@ export const useFFmpegEngine = ({
         if (cachedResponse) {
           const blob = await cachedResponse.blob();
           onProgress(100);
-          return URL.createObjectURL(blob);
+          return createBlobUrl(blob);
         }
       }
     } catch (e) {
@@ -45,7 +56,7 @@ export const useFFmpegEngine = ({
     if (!response.body || total === 0) {
       const blob = await response.blob();
       onProgress(100);
-      return URL.createObjectURL(blob);
+      return createBlobUrl(blob);
     }
 
     const reader = response.body.getReader();
@@ -78,12 +89,15 @@ export const useFFmpegEngine = ({
         await cache.put(request, responseToCache);
       }
     } catch (e) {
-      console.warn('[Cache] Failed to save to cache:', e);
+      logger.warn('[Cache] Failed to save to cache:', e);
     }
 
-    return URL.createObjectURL(blob);
+    return createBlobUrl(blob);
   };
 
+  /**
+   * Processes the input file, validates it, and saves it to OPFS.
+   */
   const processFile = useCallback(async (file: File) => {
     haptic.medium();
     const inputFilename = `input_${task.id}.mp4`;
@@ -108,25 +122,34 @@ export const useFFmpegEngine = ({
     }
   }, [task.id, updateTask, addLog]);
 
-  // Effect 1: Process file immediately on mount if reading
+  // Process file immediately on mount if in 'reading' state
   useEffect(() => {
     if (task.status === 'reading') {
       processFile(task.file);
     }
-    // We strictly depend on empty dependency array (run once) + task.status guard
-    // logic to prevent infinite loops, although processFile changes status to 'ready'
-    // so it wouldn't loop anyway.
   }, []); 
 
-  // Effect 2: Load FFmpeg Engine
+  // Load FFmpeg Engine on mount
   useEffect(() => {
-    const load = async () => {
+    /**
+     * Loads the FFmpeg engine with retry logic and timeout.
+     */
+    const loadWithRetry = async (retries = 3, timeout = 30000) => {
+      // Dynamic imports for FFmpeg to reduce initial bundle size
+      const { FFmpeg } = await import('../vendor/ffmpeg/index.js');
+      const { toBlobURL } = await import('../vendor/util/index.js');
+
+      if (!ffmpegRef.current) {
+        ffmpegRef.current = new FFmpeg();
+      }
+
       if (ffmpegRef.current.loaded) return;
 
       const ffmpeg = ffmpegRef.current;
       
       ffmpeg.on('log', ({ type, message }: { type: string, message: string }) => {
         if (typeof message === 'string') {
+          // Filter out noisy progress logs
           if (!message.startsWith('frame=') && !message.startsWith('size=')) {
             addLog(task.id, `[${type}] ${message}`);
           }
@@ -135,33 +158,60 @@ export const useFFmpegEngine = ({
 
       ffmpeg.on('progress', ({ progress }: { progress: number }) => {
         const p = Math.max(0, Math.min(100, Math.round(progress * 100)));
-        updateTask(task.id, { progress: p });
+        
+        // Throttle progress updates to avoid excessive re-renders (max every 100ms)
+        const now = Date.now();
+        if (now - lastProgressTimeRef.current > 100 || p === 100) {
+          updateTask(task.id, { progress: p });
+          lastProgressRef.current = p;
+          lastProgressTimeRef.current = now;
+        }
       });
 
-      try {
-        if (!window.isSecureContext) {
-          throw new Error('This app requires a secure context (HTTPS or localhost) to function.');
-        }
-        
-        const baseURL = window.location.origin + '/core';
-        const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
-        const wasmURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, (p) => {
-          updateTask(task.id, { loadProgress: Math.round(p) });
-          onGlobalLoadProgress?.(Math.round(p));
-        });
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          if (!window.isSecureContext) {
+            throw new Error('This app requires a secure context (HTTPS or localhost) to function.');
+          }
+          
+          const baseURL = window.location.origin + '/core';
+          
+          await Promise.race([
+            (async () => {
+              const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
+              const wasmURL = await fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, (p) => {
+                updateTask(task.id, { loadProgress: Math.round(p) });
+                onGlobalLoadProgress?.(Math.round(p));
+              });
 
-        await ffmpeg.load({ coreURL, wasmURL });
-      } catch (error: any) {
-        console.error(error);
-        // Only set error if we aren't already in error state from file read
-        updateTask(task.id, { status: 'error', errorMessage: error?.message || 'Engine failed' });
-        addLog(task.id, `System failed to start: ${error?.message}`);
+              await ffmpeg.load({ coreURL, wasmURL });
+            })(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error(`Engine load timeout after ${timeout}ms`)), timeout)
+            )
+          ]);
+          
+          return; // Success!
+        } catch (error: any) {
+          logger.error(`FFmpeg load attempt ${attempt} failed:`, error);
+          
+          if (attempt === retries) {
+            updateTask(task.id, { status: 'error', errorMessage: error?.message || 'Engine failed after multiple attempts' });
+            addLog(task.id, `System failed to start: ${error?.message}`);
+          } else {
+            addLog(task.id, `Engine load attempt ${attempt} failed, retrying...`);
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+          }
+        }
       }
     };
 
-    load();
+    loadWithRetry();
   }, []);
 
+  /**
+   * Fetches metadata for the input file using ffprobe.
+   */
   const fetchMetadata = useCallback(async () => {
     if (task.metadata) {
       updateTask(task.id, { showMetadata: true });
@@ -188,6 +238,7 @@ export const useFFmpegEngine = ({
       const totalSize = inputFile.size;
       let offset = 0;
 
+      // Write file to FFmpeg virtual filesystem in chunks
       await ffmpeg.writeFile(probeFilename, new Uint8Array(0));
       while (offset < totalSize) {
         const chunk = inputFile.slice(offset, offset + CHUNK_SIZE);
@@ -227,8 +278,11 @@ export const useFFmpegEngine = ({
       try { await ffmpeg.deleteFile(probeFilename); } catch (e) {}
       updateTask(task.id, { isMetadataLoading: false });
     }
-  }, [task.id, task.metadata]);
+  }, [task.id, task.metadata, addLog, updateTask]);
 
+  /**
+   * Performs the audio extraction/conversion using FFmpeg.
+   */
   const extractAudio = useCallback(async () => {
     haptic.medium();
     updateTask(task.id, { status: 'processing', progress: 0 });
@@ -242,6 +296,7 @@ export const useFFmpegEngine = ({
       const totalSize = inputFile.size;
       let offset = 0;
 
+      // Write file to FFmpeg virtual filesystem in chunks to avoid memory issues
       await ffmpeg.writeFile(inputFilename, new Uint8Array(0));
       while (offset < totalSize) {
         const chunk = inputFile.slice(offset, offset + CHUNK_SIZE);
@@ -254,28 +309,13 @@ export const useFFmpegEngine = ({
       }
       
       addLog(task.id, 'Extracting high-quality audio...');
-      let outputExt = task.selectedFormat;
-      let ffmpegArgs: string[] = ['-i', inputFilename, '-vn', '-map', 'a'];
-
-      if (task.selectedFormat === 'original') {
-        const audioStream = task.metadata?.streams?.find((s: any) => s.codec_type === 'audio');
-        const codec = audioStream?.codec_name || 'aac';
-        const codecMap: Record<string, string> = { 'aac': 'm4a', 'mp3': 'mp3', 'vorbis': 'ogg', 'opus': 'opus', 'flac': 'flac', 'pcm_s16le': 'wav' };
-        outputExt = codecMap[codec] || 'm4a';
-        ffmpegArgs.push('-c:a', 'copy');
-      } else {
-        const formatConfig: Record<string, string[]> = {
-          mp3: ['-acodec', 'libmp3lame', '-q:a', '2'],
-          wav: ['-acodec', 'pcm_s16le'],
-          ogg: ['-acodec', 'libvorbis', '-q:a', '4'],
-          flac: ['-acodec', 'flac'],
-          m4a: ['-acodec', 'aac', '-b:a', '192k']
-        };
-        ffmpegArgs.push(...(formatConfig[task.selectedFormat] || formatConfig.mp3));
-      }
-
+      
+      const outputExt = task.selectedFormat === 'original' 
+        ? getOriginalExtension(task.metadata) 
+        : task.selectedFormat;
+        
       const outputFileName = `output_${task.id}.${outputExt}`;
-      ffmpegArgs.push(outputFileName);
+      const ffmpegArgs = getFFmpegArgs(inputFilename, outputFileName, task.selectedFormat, task.metadata);
 
       const ret = await ffmpeg.exec(ffmpegArgs);
       if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`);
@@ -286,14 +326,16 @@ export const useFFmpegEngine = ({
       const typeMap: Record<string, string> = {
         mp3: 'audio/mp3', wav: 'audio/wav', ogg: 'audio/ogg', opus: 'audio/opus', flac: 'audio/flac', m4a: 'audio/mp4'
       };
-      const blob = new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: typeMap[outputExt] || 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
+      const blob = new Blob([(data as Uint8Array).buffer as ArrayBuffer], { 
+        type: typeMap[outputExt] || 'audio/mpeg' 
+      });
+      const url = createBlobUrl(blob);
       
       updateTask(task.id, { status: 'done', outputUrl: url, outputExt });
       haptic.success();
       addLog(task.id, 'Process complete.');
       
-      // Cleanup FFmpeg memory/files
+      // Cleanup FFmpeg virtual files
       try {
         await ffmpeg.deleteFile(inputFilename);
         await ffmpeg.deleteFile(outputFileName);
@@ -303,7 +345,7 @@ export const useFFmpegEngine = ({
       haptic.error();
       addLog(task.id, `Conversion failed: ${e.message}`);
     }
-  }, [task.id, task.selectedFormat, task.metadata]);
+  }, [task.id, task.selectedFormat, task.metadata, addLog, updateTask, createBlobUrl]);
 
   return { fetchMetadata, processFile, extractAudio };
 };

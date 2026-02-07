@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { FileAudio, Info, X, AlertCircle } from 'lucide-react';
 import { formatBytes } from '../../lib/utils';
 import { Button } from '../ui/Button';
-import { AudioFormat } from '../../App';
+import { AudioFormat } from '../../types';
 
 interface ConversionProgressProps {
   status: 'reading' | 'ready' | 'processing';
@@ -18,7 +18,7 @@ interface ConversionProgressProps {
   isMetadataLoading: boolean;
 }
 
-export const ConversionProgress = ({
+export const ConversionProgress = React.memo(({
   status, fileName, fileSize, progress, selectedFormat, setSelectedFormat,
   onExtract, onReset, onProbe, isMetadataLoading
 }: ConversionProgressProps) => {
@@ -106,4 +106,4 @@ export const ConversionProgress = ({
       </div>
     </motion.div>
   );
-};
+});

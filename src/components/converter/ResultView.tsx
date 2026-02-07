@@ -13,7 +13,7 @@ interface ResultViewProps {
   audioPlayerRef: React.RefObject<any>;
 }
 
-export const ResultView = ({ outputUrl, fileName, outputExt, onReset, audioPlayerRef }: ResultViewProps) => {
+export const ResultView = React.memo(({ outputUrl, fileName, outputExt, onReset, audioPlayerRef }: ResultViewProps) => {
   return (
     <motion.div 
       key="done" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
@@ -48,4 +48,4 @@ export const ResultView = ({ outputUrl, fileName, outputExt, onReset, audioPlaye
       </div>
     </motion.div>
   );
-};
+});

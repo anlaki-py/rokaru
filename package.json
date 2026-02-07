@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "vite preview"
+    "start": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",
@@ -25,12 +26,23 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^25.2.1",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-basic-ssl": "^2.1.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "babel-plugin-transform-remove-console": "^6.9.4",
+    "jsdom": "^28.0.0",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^4.0.0",
+    "terser": "^5.46.0",
     "typescript": "^5.2.0",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "vite-plugin-compression2": "^2.4.0",
+    "vitest": "^4.0.18"
   }
 }
